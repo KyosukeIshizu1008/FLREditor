@@ -1,0 +1,199 @@
+# POS取引ログ（100バイト、マルチバリアント）
+#
+# 1取引 = ヘッダ1件 + 明細N件 + フッタ1件 の構造。
+# 先頭1バイトの区分文字 (H/D/T) でレイアウトを切り替える。
+
+name = "pos_transaction_100"
+record_length = 100
+default_encoding = "shift_jis"
+record_separator = "none"
+
+[discriminator]
+offset = 0
+length = 1
+encoding = "ascii"
+
+# ─────────────────────────────────────────────────────────────
+# ヘッダ (H) — 1取引の先頭
+# ─────────────────────────────────────────────────────────────
+[[variants]]
+key = "H"
+name = "ヘッダレコード"
+description = "店舗・レジ・取引日時など取引単位のメタ情報"
+
+[[variants.fields]]
+name = "区分"
+offset = 0
+length = 1
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "取引ID"
+offset = 1
+length = 12
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "店舗コード"
+offset = 13
+length = 4
+kind = "numeric"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "取引日"
+offset = 17
+length = 8
+kind = "date"
+format = "YYYYMMDD"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "取引時刻"
+offset = 25
+length = 6
+kind = "text"
+encoding = "ascii"
+description = "HHMMSS"
+
+[[variants.fields]]
+name = "レジ番号"
+offset = 31
+length = 4
+kind = "numeric"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "担当者名"
+offset = 35
+length = 30
+kind = "text"
+
+[[variants.fields]]
+name = "予備領域"
+offset = 65
+length = 35
+kind = "filler"
+encoding = "ascii"
+
+# ─────────────────────────────────────────────────────────────
+# 明細 (D) — 商品ごとの明細行
+# ─────────────────────────────────────────────────────────────
+[[variants]]
+key = "D"
+name = "明細レコード"
+description = "1商品1行。数量がマイナスなら返品。"
+
+[[variants.fields]]
+name = "区分"
+offset = 0
+length = 1
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "JANコード"
+offset = 1
+length = 13
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "商品名"
+offset = 14
+length = 30
+kind = "text"
+
+[[variants.fields]]
+name = "単価"
+offset = 44
+length = 8
+kind = "numeric"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "数量"
+offset = 52
+length = 6
+kind = "numeric"
+signed = true
+encoding = "ascii"
+
+[[variants.fields]]
+name = "小計"
+offset = 58
+length = 10
+kind = "decimal"
+scale = 0
+signed = true
+encoding = "ascii"
+
+[[variants.fields]]
+name = "値引額"
+offset = 68
+length = 10
+kind = "decimal"
+scale = 0
+encoding = "ascii"
+
+[[variants.fields]]
+name = "予備領域"
+offset = 78
+length = 22
+kind = "filler"
+encoding = "ascii"
+
+# ─────────────────────────────────────────────────────────────
+# フッタ (T) — 取引の合計
+# ─────────────────────────────────────────────────────────────
+[[variants]]
+key = "T"
+name = "フッタレコード"
+description = "直前ヘッダから始まる取引の合計"
+
+[[variants.fields]]
+name = "区分"
+offset = 0
+length = 1
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "明細件数"
+offset = 1
+length = 6
+kind = "numeric"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "合計金額"
+offset = 7
+length = 12
+kind = "decimal"
+scale = 0
+encoding = "ascii"
+
+[[variants.fields]]
+name = "消費税額"
+offset = 19
+length = 10
+kind = "decimal"
+scale = 0
+encoding = "ascii"
+
+[[variants.fields]]
+name = "集計日"
+offset = 29
+length = 8
+kind = "date"
+format = "YYYYMMDD"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "予備領域"
+offset = 37
+length = 63
+kind = "filler"
+encoding = "ascii"

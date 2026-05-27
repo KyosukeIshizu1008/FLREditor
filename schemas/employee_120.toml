@@ -1,0 +1,89 @@
+# 従業員レコード（120バイト、全フィールド型を網羅するデモ）
+#
+# このスキーマは text / numeric / decimal / date / bytes / filler の
+# 全 kind と、フィールド単位のエンコーディング上書き、2種類の date 書式
+# (区切りあり/なし)、signed numeric/decimal を一通り含む。
+
+name = "employee_record_120"
+record_length = 120
+default_encoding = "shift_jis"
+record_separator = "none"
+
+[[fields]]
+name = "社員番号"
+offset = 0
+length = 8
+kind = "numeric"
+encoding = "ascii"
+
+[[fields]]
+name = "氏名"
+offset = 8
+length = 30
+kind = "text"
+description = "氏名 (Shift_JIS 全角)"
+
+[[fields]]
+name = "入社日"
+offset = 38
+length = 8
+kind = "date"
+format = "YYYYMMDD"
+encoding = "ascii"
+
+[[fields]]
+name = "生年月日"
+offset = 46
+length = 10
+kind = "date"
+format = "YYYY-MM-DD"
+encoding = "ascii"
+description = "ハイフン区切りで書式リテラルのデモ"
+
+[[fields]]
+name = "基本給"
+offset = 56
+length = 10
+kind = "decimal"
+scale = 0
+signed = true
+encoding = "ascii"
+description = "円単位、賃下げ調整時は負"
+
+[[fields]]
+name = "評価係数"
+offset = 66
+length = 8
+kind = "decimal"
+scale = 2
+signed = true
+encoding = "ascii"
+description = "scale=2 のため '+0000125' は +1.25"
+
+[[fields]]
+name = "部署コード"
+offset = 74
+length = 2
+kind = "text"
+encoding = "ascii"
+
+[[fields]]
+name = "役職名"
+offset = 76
+length = 20
+kind = "text"
+encoding = "utf8"
+description = "このフィールドだけ UTF-8"
+
+[[fields]]
+name = "メモ"
+offset = 96
+length = 12
+kind = "text"
+
+[[fields]]
+name = "識別子"
+offset = 108
+length = 12
+kind = "bytes"
+description = "不透明バイト列 (HEX表示のみ)"

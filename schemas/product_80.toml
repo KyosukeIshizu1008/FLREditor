@@ -1,0 +1,64 @@
+# 商品マスタ（80バイト、単一レイアウト）
+#
+# シンプルな単層スキーマのデモ。numeric/text/date/filler を一通り使用し、
+# 在庫数フィールドで signed=true を試す。
+
+name = "product_master_80"
+record_length = 80
+default_encoding = "shift_jis"
+record_separator = "none"
+
+[[fields]]
+name = "JANコード"
+offset = 0
+length = 13
+kind = "text"
+encoding = "ascii"
+description = "JAN-13 / EAN-13 バーコード"
+
+[[fields]]
+name = "商品名"
+offset = 13
+length = 30
+kind = "text"
+description = "商品の表示名 (Shift_JIS)"
+
+[[fields]]
+name = "価格"
+offset = 43
+length = 6
+kind = "numeric"
+encoding = "ascii"
+description = "税抜価格 (円)"
+
+[[fields]]
+name = "在庫数"
+offset = 49
+length = 4
+kind = "numeric"
+signed = true
+encoding = "ascii"
+description = "現在庫数 (マイナスは取り寄せ中)"
+
+[[fields]]
+name = "入荷日"
+offset = 53
+length = 8
+kind = "date"
+format = "YYYYMMDD"
+encoding = "ascii"
+
+[[fields]]
+name = "カテゴリ"
+offset = 61
+length = 7
+kind = "text"
+encoding = "ascii"
+description = "FOOD/DRINK/HEALTH/STAT等"
+
+[[fields]]
+name = "予備領域"
+offset = 68
+length = 12
+kind = "filler"
+encoding = "ascii"
