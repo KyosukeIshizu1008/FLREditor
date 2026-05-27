@@ -1,0 +1,119 @@
+name = "sample_120byte_remittance"
+record_length = 120
+default_encoding = "shift_jis"
+record_separator = "none"
+
+# 全銀協フォーマット風サンプル（120バイト・1レコード）
+# 注: 実フォーマットそのものではなく、典型的なフィールド構成を模した例です。
+
+[[fields]]
+name        = "record_type"
+offset      = 0
+length      = 1
+kind        = "text"
+pad         = 0x20
+encoding    = "ascii"
+description = "レコード区分 (1=ヘッダ, 2=データ, 8=トレーラ, 9=エンド)"
+
+[[fields]]
+name        = "bank_code"
+offset      = 1
+length      = 4
+kind        = "numeric"
+pad         = 0x30
+signed      = false
+encoding    = "ascii"
+description = "金融機関コード"
+
+[[fields]]
+name        = "branch_code"
+offset      = 5
+length      = 3
+kind        = "numeric"
+pad         = 0x30
+signed      = false
+encoding    = "ascii"
+description = "支店コード"
+
+[[fields]]
+name        = "account_type"
+offset      = 8
+length      = 1
+kind        = "numeric"
+pad         = 0x30
+signed      = false
+encoding    = "ascii"
+description = "預金種目 (1=普通, 2=当座, 9=その他)"
+
+[[fields]]
+name        = "account_number"
+offset      = 9
+length      = 7
+kind        = "numeric"
+pad         = 0x30
+signed      = false
+encoding    = "ascii"
+description = "口座番号"
+
+[[fields]]
+name        = "account_holder"
+offset      = 16
+length      = 30
+kind        = "text"
+pad         = 0x20
+description = "口座名義人カナ/漢字 (Shift_JIS)"
+
+[[fields]]
+name        = "transfer_date"
+offset      = 46
+length      = 8
+kind        = "date"
+format      = "YYYYMMDD"
+encoding    = "ascii"
+description = "振込指定日"
+
+[[fields]]
+name        = "amount"
+offset      = 54
+length      = 10
+kind        = "decimal"
+pad         = 0x30
+scale       = 0
+signed      = false
+encoding    = "ascii"
+description = "振込金額 (円)"
+
+[[fields]]
+name        = "ref_no"
+offset      = 64
+length      = 20
+kind        = "text"
+pad         = 0x20
+encoding    = "ascii"
+description = "顧客参照番号"
+
+[[fields]]
+name        = "ezk_code"
+offset      = 84
+length      = 1
+kind        = "text"
+pad         = 0x20
+encoding    = "ascii"
+description = "EDI情報区分"
+
+[[fields]]
+name        = "note"
+offset      = 85
+length      = 20
+kind        = "text"
+pad         = 0x20
+description = "備考 / EDI情報 (Shift_JIS)"
+
+[[fields]]
+name        = "filler"
+offset      = 105
+length      = 15
+kind        = "filler"
+pad         = 0x20
+encoding    = "ascii"
+description = "予備領域"

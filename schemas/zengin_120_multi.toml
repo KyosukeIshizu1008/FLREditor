@@ -1,0 +1,308 @@
+# 全銀協 振込依頼フォーマット（120バイト）— 多バリアント版
+#
+# 1ファイル内に4種類のレコードが混在する:
+#   1: ヘッダレコード(依頼単位の先頭)
+#   2: データレコード(個別の振込明細)
+#   8: トレーラレコード(依頼単位の合計)
+#   9: エンドレコード(ファイル末尾)
+#
+# 先頭1バイトの「レコード区分」で判別する。各バリアントが120バイトの
+# 同じ枠を別レイアウトで使うため、フィールド名・型・オフセットがそれぞれ違う。
+
+name = "zengin_120_multi"
+record_length = 120
+default_encoding = "shift_jis"
+record_separator = "none"
+
+# レコード区分でバリアントを判別
+[discriminator]
+offset = 0
+length = 1
+encoding = "ascii"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ヘッダレコード (キー: "1")
+# ─────────────────────────────────────────────────────────────────────────────
+[[variants]]
+key = "1"
+name = "ヘッダレコード"
+description = "依頼単位の先頭。委託者情報、取組日、仕向銀行を記載"
+
+[[variants.fields]]
+name = "レコード区分"
+offset = 0
+length = 1
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "種別コード"
+offset = 1
+length = 4
+kind = "numeric"
+encoding = "ascii"
+description = "業務種別 (0397=オラクルベリー 等)"
+
+[[variants.fields]]
+name = "コード区分"
+offset = 5
+length = 3
+kind = "numeric"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "委託者番号"
+offset = 8
+length = 8
+kind = "numeric"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "委託者名"
+offset = 16
+length = 30
+kind = "text"
+description = "依頼元の名称 (Shift_JIS)"
+
+[[variants.fields]]
+name = "取組日"
+offset = 46
+length = 8
+kind = "date"
+format = "YYYYMMDD"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "予備領域A"
+offset = 54
+length = 10
+kind = "filler"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "仕向情報"
+offset = 64
+length = 20
+kind = "text"
+encoding = "ascii"
+description = "送信元金融機関識別子等"
+
+[[variants.fields]]
+name = "EDI区分"
+offset = 84
+length = 1
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "備考"
+offset = 85
+length = 20
+kind = "text"
+
+[[variants.fields]]
+name = "予備領域B"
+offset = 105
+length = 15
+kind = "filler"
+encoding = "ascii"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# データレコード (キー: "2") — 振込明細
+# ─────────────────────────────────────────────────────────────────────────────
+[[variants]]
+key = "2"
+name = "データレコード"
+description = "個別の振込明細 (被仕向銀行、受取人、金額)"
+
+[[variants.fields]]
+name = "レコード区分"
+offset = 0
+length = 1
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "被仕向銀行コード"
+offset = 1
+length = 4
+kind = "numeric"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "被仕向支店コード"
+offset = 5
+length = 3
+kind = "numeric"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "預金種目"
+offset = 8
+length = 1
+kind = "numeric"
+encoding = "ascii"
+description = "1=普通, 2=当座, 9=その他"
+
+[[variants.fields]]
+name = "口座番号"
+offset = 9
+length = 7
+kind = "numeric"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "受取人名"
+offset = 16
+length = 30
+kind = "text"
+description = "受取人カナ/漢字 (Shift_JIS)"
+
+[[variants.fields]]
+name = "振込指定日"
+offset = 46
+length = 8
+kind = "date"
+format = "YYYYMMDD"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "振込金額"
+offset = 54
+length = 10
+kind = "decimal"
+scale = 0
+encoding = "ascii"
+
+[[variants.fields]]
+name = "顧客参照番号"
+offset = 64
+length = 20
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "EDI区分"
+offset = 84
+length = 1
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "備考"
+offset = 85
+length = 20
+kind = "text"
+
+[[variants.fields]]
+name = "予備領域"
+offset = 105
+length = 15
+kind = "filler"
+encoding = "ascii"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# トレーラレコード (キー: "8") — 依頼単位の合計
+# ─────────────────────────────────────────────────────────────────────────────
+[[variants]]
+key = "8"
+name = "トレーラレコード"
+description = "直前の (1)〜(2) ブロックの合計件数と合計金額"
+
+[[variants.fields]]
+name = "レコード区分"
+offset = 0
+length = 1
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "予備領域A"
+offset = 1
+length = 15
+kind = "filler"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "区分名"
+offset = 16
+length = 30
+kind = "text"
+
+[[variants.fields]]
+name = "集計日"
+offset = 46
+length = 8
+kind = "date"
+format = "YYYYMMDD"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "合計件数"
+offset = 54
+length = 10
+kind = "numeric"
+encoding = "ascii"
+description = "このブロックのデータレコード件数"
+
+[[variants.fields]]
+name = "集計識別子"
+offset = 64
+length = 20
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "EDI区分"
+offset = 84
+length = 1
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "備考"
+offset = 85
+length = 20
+kind = "text"
+
+[[variants.fields]]
+name = "予備領域B"
+offset = 105
+length = 15
+kind = "filler"
+encoding = "ascii"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# エンドレコード (キー: "9") — ファイル末尾
+# ─────────────────────────────────────────────────────────────────────────────
+[[variants]]
+key = "9"
+name = "エンドレコード"
+description = "ファイル全体の終端マーク。原則1ファイルにつき1件、末尾に1つだけ"
+
+[[variants.fields]]
+name = "レコード区分"
+offset = 0
+length = 1
+kind = "text"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "予備領域A"
+offset = 1
+length = 15
+kind = "filler"
+encoding = "ascii"
+
+[[variants.fields]]
+name = "終端識別子"
+offset = 16
+length = 30
+kind = "text"
+
+[[variants.fields]]
+name = "予備領域B"
+offset = 46
+length = 74
+kind = "filler"
+encoding = "ascii"
