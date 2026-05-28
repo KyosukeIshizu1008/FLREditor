@@ -49,6 +49,7 @@ pub fn draw(
 
     let mut want_validate = false;
     let mut auto_align_end: Option<usize> = None;
+    let record_length = schema.record_length;
 
     {
         let target: Option<&mut Vec<Field>> = match state.active_variant {
@@ -66,16 +67,74 @@ pub fn draw(
             draw_field_list(ui, fields, &mut state.selected_field);
 
             ui.separator();
-            ui.horizontal(|ui| {
+
+            // Coverage indicator — green if =, red if over, amber if under.
+            let used: usize = fields
+                .iter()
+                .map(|f| f.offset + f.length)
+                .max()
+                .unwrap_or(0);
+            let (color, msg) = if used == record_length {
+                (
+                    crate::theme::SUCCESS,
+                    format!("✓ 合計 {} / {} バイト (一致)", used, record_length),
+                )
+            } else if used > record_length {
+                (
+                    crate::theme::ERR,
+                    format!(
+                        "⚠ 合計 {} / {} バイト ({} バイト オーバー)",
+                        used,
+                        record_length,
+                        used - record_length
+                    ),
+                )
+            } else {
+                (
+                    crate::theme::WARN,
+                    format!(
+                        "… 合計 {} / {} バイト (残り {} バイト)",
+                        used,
+                        record_length,
+                        record_length - used
+                    ),
+                )
+            };
+            ui.colored_label(color, msg);
+
+            ui.horizontal_wrapped(|ui| {
                 if ui.button("+ フィールド追加").clicked() {
-                    let next_offset = fields.last().map(|f| f.offset + f.length).unwrap_or(0);
+                    let next_offset = fields
+                        .iter()
+                        .map(|f| f.offset + f.length)
+                        .max()
+                        .unwrap_or(0);
+                    let default_len = if next_offset < record_length {
+                        record_length - next_offset
+                    } else {
+                        1
+                    };
                     fields.push(Field {
                         name: format!("field_{}", fields.len() + 1),
                         offset: next_offset,
-                        length: 1,
+                        length: default_len,
                         kind: FieldKind::Text { pad: 0x20 },
                         encoding: None,
                         description: String::new(),
+                    });
+                }
+                if used < record_length
+                    && ui
+                        .button(format!("+ 残り {} を filler で埋める", record_length - used))
+                        .clicked()
+                {
+                    fields.push(Field {
+                        name: format!("filler_{}", fields.len() + 1),
+                        offset: used,
+                        length: record_length - used,
+                        kind: FieldKind::Filler { pad: 0x20 },
+                        encoding: None,
+                        description: "(残り領域)".into(),
                     });
                 }
                 if ui.button("検証").clicked() {
@@ -311,12 +370,16 @@ fn draw_variant_picker(
 
 fn draw_field_list(ui: &mut egui::Ui, fields: &mut Vec<Field>, selected: &mut Option<usize>) {
     egui::ScrollArea::vertical()
-        .max_height(ui.available_height() - 100.0)
+        .max_height(ui.available_height() - 120.0)
         .auto_shrink([false, false])
         .show(ui, |ui| {
             let mut remove_idx: Option<usize> = None;
             let mut move_up: Option<usize> = None;
             let mut move_down: Option<usize> = None;
+            // (field_index, length_delta) — when a field's length changed,
+            // shift every later field's offset by the same delta so the rest
+            // of the layout slides instead of overlapping/gapping.
+            let mut length_change: Option<(usize, i64)> = None;
 
             for i in 0..fields.len() {
                 let is_sel = *selected == Some(i);
@@ -331,7 +394,9 @@ fn draw_field_list(ui: &mut egui::Ui, fields: &mut Vec<Field>, selected: &mut Op
                     .id_salt(("field_hdr", i))
                     .default_open(is_sel)
                     .show(ui, |ui| {
-                        draw_field_editor(ui, &mut fields[i], i);
+                        if let Some(delta) = draw_field_editor(ui, &mut fields[i], i) {
+                            length_change = Some((i, delta));
+                        }
                         ui.horizontal(|ui| {
                             if ui.button("↑ 上へ").clicked() {
                                 move_up = Some(i);
@@ -363,10 +428,20 @@ fn draw_field_list(ui: &mut egui::Ui, fields: &mut Vec<Field>, selected: &mut Op
                     fields.swap(i, i + 1);
                 }
             }
+            if let Some((from_idx, delta)) = length_change {
+                for f in fields.iter_mut().skip(from_idx + 1) {
+                    let new_off = (f.offset as i64 + delta).max(0);
+                    f.offset = new_off as usize;
+                }
+            }
         });
 }
 
-fn draw_field_editor(ui: &mut egui::Ui, field: &mut Field, idx: usize) {
+/// Returns `Some(delta)` if the field's length changed in this frame, where
+/// `delta = new_length - old_length`. Callers use this to shift subsequent
+/// fields so a length tweak doesn't silently create gaps or overlaps.
+fn draw_field_editor(ui: &mut egui::Ui, field: &mut Field, idx: usize) -> Option<i64> {
+    let mut length_delta: Option<i64> = None;
     egui::Grid::new(("field_grid", idx))
         .num_columns(2)
         .spacing([8.0, 4.0])
@@ -383,9 +458,15 @@ fn draw_field_editor(ui: &mut egui::Ui, field: &mut Field, idx: usize) {
             ui.end_row();
 
             ui.label("長さ:");
+            let old_len = field.length as i64;
             let mut len = field.length as i64;
             if ui.add(egui::DragValue::new(&mut len).range(1..=4096)).changed() {
-                field.length = len.max(1) as usize;
+                let new_len = len.max(1) as usize;
+                field.length = new_len;
+                let delta = new_len as i64 - old_len;
+                if delta != 0 {
+                    length_delta = Some(delta);
+                }
             }
             ui.end_row();
 
@@ -427,6 +508,7 @@ fn draw_field_editor(ui: &mut egui::Ui, field: &mut Field, idx: usize) {
             ui.text_edit_singleline(&mut field.description);
             ui.end_row();
         });
+    length_delta
 }
 
 fn kind_tag(k: &FieldKind) -> &'static str {
