@@ -243,11 +243,25 @@ impl RecordBuffer {
     }
 
     /// Append a fresh blank record at the end and return its index.
-    pub fn append_record(&mut self, schema: &Schema) -> usize {
+    /// Append a new record at the end of the buffer.
+    ///
+    /// When `variant_key` is `Some` and matches one of the schema's variants,
+    /// the new record is padded using that variant's field layout and the
+    /// discriminator bytes are stamped so it routes to the correct variant on
+    /// the next read. Passing `None` falls back to the schema-default
+    /// `fields` (correct for single-layout schemas).
+    pub fn append_record(&mut self, schema: &Schema, variant_key: Option<&str>) -> usize {
         let pad = b' ';
         let new_idx = self.record_count(schema);
         let mut block = vec![pad; schema.record_length];
-        for f in &schema.fields {
+
+        let variant = variant_key.and_then(|k| schema.variants.iter().find(|v| v.key == k));
+        let fields_to_use: &[crate::schema::Field] = match variant {
+            Some(v) => &v.fields,
+            None => &schema.fields,
+        };
+
+        for f in fields_to_use {
             let pad_byte = match &f.kind {
                 FieldKind::Numeric { pad, .. }
                 | FieldKind::Decimal { pad, .. }
@@ -260,6 +274,18 @@ impl RecordBuffer {
                 *b = pad_byte;
             }
         }
+
+        // Stamp discriminator bytes so the freshly-added record routes to this
+        // variant when re-read. Done after field padding so it wins on overlap.
+        if let (Some(v), Some(disc)) = (variant, schema.discriminator.as_ref()) {
+            if let Some(key_bytes) = disc.encoding.encode_fixed(&v.key, disc.length, b' ') {
+                let end = disc.offset + key_bytes.len();
+                if end <= block.len() {
+                    block[disc.offset..end].copy_from_slice(&key_bytes);
+                }
+            }
+        }
+
         let data = self.data.make_owned();
         data.extend_from_slice(&block);
         match schema.record_separator {

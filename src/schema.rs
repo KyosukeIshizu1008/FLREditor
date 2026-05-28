@@ -301,6 +301,13 @@ impl Schema {
         Ok(schema)
     }
 
+    /// Parse a schema directly from an in-memory TOML string.
+    pub fn from_toml_str(text: &str) -> Result<Self> {
+        let schema: Schema = toml::from_str(text).context("invalid TOML schema")?;
+        schema.validate()?;
+        Ok(schema)
+    }
+
     pub fn save_to_path(&self, path: &Path) -> Result<()> {
         self.validate()?;
         let ext = path

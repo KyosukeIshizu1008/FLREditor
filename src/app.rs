@@ -4,6 +4,36 @@ use crate::schema::Schema;
 use crate::ui::{filter, hex_view, schema_editor, search_bar, spreadsheet_view, table_view};
 use eframe::egui;
 
+/// Built-in sample schemas, embedded at compile time so they're available
+/// no matter where the binary is launched from. (name, description, toml).
+const BUILTIN_SCHEMAS: &[(&str, &str, &str)] = &[
+    (
+        "sample_120",
+        "120バイト 振込フォーマット (単一)",
+        include_str!("../schemas/sample_120.toml"),
+    ),
+    (
+        "zengin_120_multi",
+        "全銀協 120バイト (ヘッダ/データ/トレーラ/エンドの4種混在)",
+        include_str!("../schemas/zengin_120_multi.toml"),
+    ),
+    (
+        "product_80",
+        "商品マスタ 80バイト (単一)",
+        include_str!("../schemas/product_80.toml"),
+    ),
+    (
+        "pos_100_multi",
+        "POS取引 100バイト (H/D/T)",
+        include_str!("../schemas/pos_100_multi.toml"),
+    ),
+    (
+        "employee_120",
+        "従業員 120バイト (全 kind 網羅)",
+        include_str!("../schemas/employee_120.toml"),
+    ),
+];
+
 /// Which large view occupies the central panel.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ViewMode {
@@ -42,6 +72,9 @@ pub struct FlrApp {
 
     /// Active filter (multi-condition AND'd) applied to the spreadsheet.
     pub filter: filter::FilterState,
+
+    /// Whether the bottom "フィールド分解" panel is shown.
+    pub table_panel_open: bool,
 }
 
 pub struct TableEditState {
@@ -66,6 +99,7 @@ impl FlrApp {
             view_mode: ViewMode::Detail,
             spreadsheet: spreadsheet_view::SpreadsheetState::default(),
             filter: filter::FilterState::default(),
+            table_panel_open: true,
         }
     }
 
@@ -175,20 +209,22 @@ impl eframe::App for FlrApp {
             );
         });
 
-        egui::TopBottomPanel::bottom("table_view")
-            .resizable(true)
-            .default_height(320.0)
-            .min_height(160.0)
-            .show(ctx, |ui| {
-                table_view::draw(
-                    ui,
-                    &self.schema,
-                    &mut self.buffer,
-                    &mut self.highlighted_field,
-                    &mut self.table_edit,
-                    &mut self.status,
-                );
-            });
+        if self.table_panel_open {
+            egui::TopBottomPanel::bottom("table_view")
+                .resizable(true)
+                .default_height(320.0)
+                .min_height(40.0)
+                .show(ctx, |ui| {
+                    table_view::draw(
+                        ui,
+                        &self.schema,
+                        &mut self.buffer,
+                        &mut self.highlighted_field,
+                        &mut self.table_edit,
+                        &mut self.status,
+                    );
+                });
+        }
 
         egui::CentralPanel::default().show(ctx, |ui| match self.view_mode {
             ViewMode::Detail => hex_view::draw(
@@ -233,15 +269,71 @@ impl FlrApp {
                         ui.close_menu();
                         self.open_schema_file();
                     }
+                    ui.menu_button("サンプルスキーマを使う", |ui| {
+                        let entries: Vec<(&str, &str, &str)> = BUILTIN_SCHEMAS.to_vec();
+                        for (name, desc, text) in entries {
+                            let label = format!("{} — {}", name, desc);
+                            if ui.button(label).clicked() {
+                                ui.close_menu();
+                                match Schema::from_toml_str(text) {
+                                    Ok(s) => {
+                                        let stride_changed = s.stride() != self.schema.stride();
+                                        self.schema = s;
+                                        self.filter.invalidate();
+                                        if stride_changed {
+                                            self.buffer =
+                                                RecordBuffer::new_empty(&self.schema, 1);
+                                        }
+                                        self.status = format!(
+                                            "サンプル '{}' を読み込みました",
+                                            self.schema.name
+                                        );
+                                    }
+                                    Err(e) => {
+                                        self.status = format!("スキーマ解析失敗: {e:#}");
+                                    }
+                                }
+                            }
+                        }
+                    });
                     if ui.button("スキーマを保存…").clicked() {
                         ui.close_menu();
                         self.save_schema_file();
                     }
                 });
                 ui.menu_button("レコード", |ui| {
-                    if ui.button("新規レコードを追加").clicked() {
+                    if self.schema.is_multi_variant() {
+                        ui.menu_button("新規レコードを追加…", |ui| {
+                            let variants: Vec<(String, String)> = self
+                                .schema
+                                .variants
+                                .iter()
+                                .map(|v| (v.key.clone(), v.name.clone()))
+                                .collect();
+                            for (key, name) in variants {
+                                let label = if name.is_empty() {
+                                    format!("[{}]", key)
+                                } else {
+                                    format!("[{}] {}", key, name)
+                                };
+                                if ui.button(label).clicked() {
+                                    ui.close_menu();
+                                    let idx = self
+                                        .buffer
+                                        .append_record(&self.schema, Some(&key));
+                                    self.buffer.current_record = idx;
+                                    self.filter.invalidate();
+                                    self.status = format!(
+                                        "レコード {} (バリアント [{}]) を追加しました",
+                                        idx + 1,
+                                        key
+                                    );
+                                }
+                            }
+                        });
+                    } else if ui.button("新規レコードを追加").clicked() {
                         ui.close_menu();
-                        let idx = self.buffer.append_record(&self.schema);
+                        let idx = self.buffer.append_record(&self.schema, None);
                         self.buffer.current_record = idx;
                         self.filter.invalidate();
                         self.status = format!("レコード {} を追加しました", idx + 1);
@@ -259,6 +351,7 @@ impl FlrApp {
                 });
                 ui.menu_button("表示", |ui| {
                     ui.checkbox(&mut self.schema_editor_open, "スキーマエディタ");
+                    ui.checkbox(&mut self.table_panel_open, "フィールド分解パネル");
                     ui.separator();
                     ui.radio_value(&mut self.view_mode, ViewMode::Detail, "詳細ビュー (16進ダンプ)");
                     ui.radio_value(
