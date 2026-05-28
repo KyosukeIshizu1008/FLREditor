@@ -60,10 +60,13 @@ pub fn draw(
     let fields_snapshot: Vec<crate::schema::Field> =
         schema.fields_for(record_bytes).to_vec();
 
-    let available_height = ui.available_height();
+    // Internal vscroll is off because the outer ScrollArea in app.rs is
+    // responsible — that keeps the bottom panel freely resizable down to
+    // the resize handle, with overflow scrolling at the panel level.
     TableBuilder::new(ui)
         .striped(true)
         .resizable(true)
+        .vscroll(false)
         .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
         .column(Column::auto().at_least(40.0))   // #
         .column(Column::auto().at_least(150.0))  // name
@@ -73,8 +76,6 @@ pub fn draw(
         .column(Column::auto().at_least(110.0))  // encoding
         .column(Column::remainder().at_least(180.0)) // value (editable)
         .column(Column::auto().at_least(180.0))  // raw hex
-        .min_scrolled_height(0.0)
-        .max_scroll_height(available_height - 8.0)
         .header(20.0, |mut header| {
             header.col(|ui| { ui.strong("#"); });
             header.col(|ui| { ui.strong("フィールド名"); });

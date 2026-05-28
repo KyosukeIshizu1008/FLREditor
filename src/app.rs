@@ -213,16 +213,24 @@ impl eframe::App for FlrApp {
             egui::TopBottomPanel::bottom("table_view")
                 .resizable(true)
                 .default_height(320.0)
-                .min_height(40.0)
+                .min_height(0.0)
                 .show(ctx, |ui| {
-                    table_view::draw(
-                        ui,
-                        &self.schema,
-                        &mut self.buffer,
-                        &mut self.highlighted_field,
-                        &mut self.table_edit,
-                        &mut self.status,
-                    );
+                    // Wrap in a ScrollArea so the panel can be shrunk below
+                    // the content's natural size — otherwise the table's
+                    // intrinsic min_height pushes back against the resize
+                    // handle.
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            table_view::draw(
+                                ui,
+                                &self.schema,
+                                &mut self.buffer,
+                                &mut self.highlighted_field,
+                                &mut self.table_edit,
+                                &mut self.status,
+                            );
+                        });
                 });
         }
 
